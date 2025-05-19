@@ -7,6 +7,8 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { Clock, Building2, MapPin, DollarSign, ArrowUpRight, ArrowDownRight, CreditCard } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 enum ProjectStatus {
   OPEN = "OPEN",
@@ -77,7 +79,7 @@ export default function Dashboard() {
         console.error('Error fetching data:', error);
       }
     }
-    
+
     if (session?.user) {
       fetchData();
     }
@@ -110,7 +112,7 @@ export default function Dashboard() {
   };
 
   // Calculate payment statistics
-  const totalRevenue = payments.reduce((sum, payment) => 
+  const totalRevenue = payments.reduce((sum, payment) =>
     payment.status === 'completed' ? sum + payment.amount : sum, 0
   );
   const pendingPayments = payments.filter(payment => payment.status === 'pending');
@@ -158,8 +160,8 @@ export default function Dashboard() {
       {/* Projects Grid */}
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
         {projects.map((project) => (
-          <Card 
-            key={project.id} 
+          <Card
+            key={project.id}
             className="p-4 cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => router.push('/dashboard/jobs')}
           >
@@ -192,8 +194,8 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-4 md:gap-8 lg:grid-cols-3">
-        <RecentProjects/>
-        <RecentClient/>
+        <RecentProjects />
+        <RecentClient />
         {/* Recent Payments */}
         <Card className="p-6">
           <div className="flex flex-col space-y-4">
@@ -202,16 +204,23 @@ export default function Dashboard() {
                 <h2 className="text-xl font-semibold">Recent Payments</h2>
                 <p className="text-sm text-gray-500">Latest payment transactions</p>
               </div>
-              <button 
+              {/* <button 
                 onClick={() => router.push('/dashboard/payments')}
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
                 View All
-              </button>
+              </button> */}
+              <Button asChild size="sm" className="ml-auto gap-1">
+              <Link href="/dashboard/payments">
+                View All
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+              </Button>
+              
             </div>
             <div className="space-y-3">
               {payments.map((payment) => (
-                <div 
+                <div
                   key={payment.id}
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
                   onClick={() => router.push('/dashboard/payments')}

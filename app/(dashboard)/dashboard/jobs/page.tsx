@@ -67,6 +67,7 @@ interface Project {
   client?: string;
   startDate: Date;
   endDate?: Date;
+  position: number;
 }
 
 const projectTypes = Object.values(ProjectType);
@@ -131,27 +132,130 @@ export default function JobsPage() {
     if (!result.destination) return;
 
     const { source, destination } = result;
-    const updatedProjects = Array.from(projects);
-    const [movedProject] = updatedProjects.splice(source.index, 1);
-    movedProject.status = destination.droppableId as ProjectStatus;
-    updatedProjects.splice(destination.index, 0, movedProject);
+    const projectToMove = projects.find(p => p.id === result.draggableId);
+    
+    if (!projectToMove) return;
+
+    // Get all projects in the destination column
+    const columnProjects = projects
+      .filter(p => p.status === destination.droppableId)
+      .sort((a, b) => a.position - b.position);
+
+    // Calculate new position
+    let newPosition: number;
+    if (columnProjects.length === 0) {
+      // If column is empty, set position to 0
+      newPosition = 0;
+    } else if (destination.index === 0) {
+      // If moving to top, set position to first item's position - 1
+      newPosition = columnProjects[0].position - 1;
+    } else if (destination.index >= columnProjects.length) {
+      // If moving to bottom, set position to last item's position + 1
+      newPosition = columnProjects[columnProjects.length - 1].position + 1;
+    } else {
+      // If moving between items, set position to average of surrounding items
+      const prevPosition = columnProjects[destination.index - 1].position;
+      const nextPosition = columnProjects[destination.index].position;
+      newPosition = (prevPosition + nextPosition) / 2;
+    }
+
+    // Create a new array with the updated project
+    const updatedProjects = projects.map(p => {
+      if (p.id === projectToMove.id) {
+        return {
+          ...p,
+          status: destination.droppableId as ProjectStatus,
+          position: newPosition
+        };
+      }
+      return p;
+    });
+
+    // Update state immediately
     setProjects(updatedProjects);
 
     try {
-      const response = await fetch(`/api/projects/${movedProject.id}`, {
+      // Update in database
+      const response = await fetch(`/api/projects/${projectToMove.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...movedProject,
+          ...projectToMove,
           status: destination.droppableId,
+          position: newPosition,
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to update project status');
+      if (!response.ok) {
+        throw new Error('Failed to update project status');
+      }
     } catch (error) {
       console.error('Error updating project status:', error);
+      // Revert to original state on error
+      setProjects(projects);
+    }
+  };
+
+  // Update the handleReorder function for same-column reordering
+  const handleReorder = async (result: any) => {
+    if (!result.destination) return;
+
+    const { source, destination } = result;
+    const columnProjects = projects
+      .filter(p => p.status === result.source.droppableId)
+      .sort((a, b) => a.position - b.position);
+    
+    // Calculate new position
+    let newPosition: number;
+    if (destination.index === 0) {
+      // If moving to top, set position to first item's position - 1
+      newPosition = columnProjects[0].position - 1;
+    } else if (destination.index >= columnProjects.length - 1) {
+      // If moving to bottom, set position to last item's position + 1
+      newPosition = columnProjects[columnProjects.length - 1].position + 1;
+    } else {
+      // If moving between items, set position to average of surrounding items
+      const prevPosition = columnProjects[destination.index - 1].position;
+      const nextPosition = columnProjects[destination.index].position;
+      newPosition = (prevPosition + nextPosition) / 2;
+    }
+
+    // Create a new array with the updated project
+    const updatedProjects = projects.map(p => {
+      if (p.id === result.draggableId) {
+        return {
+          ...p,
+          position: newPosition
+        };
+      }
+      return p;
+    });
+
+    // Update state immediately
+    setProjects(updatedProjects);
+
+    try {
+      // Update in database
+      const response = await fetch(`/api/projects/${result.draggableId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...projects.find(p => p.id === result.draggableId),
+          position: newPosition,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update project position');
+      }
+    } catch (error) {
+      console.error('Error updating project position:', error);
+      // Revert to original state on error
+      setProjects(projects);
     }
   };
 
@@ -269,14 +373,16 @@ export default function JobsPage() {
     }
   };
 
-  const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (project.location?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
-    const matchesType = filterType === 'all' || project.type === filterType;
-    const matchesPriority = filterPriority === 'all' || project.priority === filterPriority;
-    return matchesSearch && matchesType && matchesPriority;
-  });
+  const filteredProjects = projects
+    .filter(project => {
+      const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          project.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (project.location?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+      const matchesType = filterType === 'all' || project.type === filterType;
+      const matchesPriority = filterPriority === 'all' || project.priority === filterPriority;
+      return matchesSearch && matchesType && matchesPriority;
+    })
+    .sort((a, b) => a.position - b.position);
 
   const getStatusColor = (status: ProjectStatus) => {
     switch (status) {
@@ -399,7 +505,13 @@ export default function JobsPage() {
         </div>
 
         <TabsContent value="board" className="space-y-4">
-          <DragDropContext onDragEnd={handleDragEnd}>
+          <DragDropContext onDragEnd={(result) => {
+            if (result.source.droppableId === result.destination?.droppableId) {
+              handleReorder(result);
+            } else {
+              handleDragEnd(result);
+            }
+          }}>
             <div className="grid grid-cols-5 gap-4">
               {projectStatuses.map((status) => (
                 <div key={status} className="space-y-4">
@@ -418,6 +530,7 @@ export default function JobsPage() {
                       >
                         {filteredProjects
                           .filter(project => project.status === status)
+                          .sort((a, b) => a.position - b.position)
                           .map((project, index) => (
                             <Draggable key={project.id} draggableId={project.id} index={index}>
                               {(provided) => (
