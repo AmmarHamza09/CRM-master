@@ -56,7 +56,7 @@ interface Project {
 }
 
 export default function NewInvoicePage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,12 +70,26 @@ export default function NewInvoicePage() {
   });
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (status === 'loading') return;
+    
+    if (status === 'unauthenticated') {
+      router.push('/login');
+      return;
+    }
+
+    if (status === 'authenticated' && session?.user) {
+      fetchProjects();
+    }
+  }, [status, session, router]);
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects");
+      const response = await fetch("/api/projects", {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
       if (!response.ok) throw new Error("Failed to fetch projects");
       const data = await response.json();
       setProjects(data);
@@ -93,8 +107,14 @@ export default function NewInvoicePage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: 'include',
         body: JSON.stringify(values),
       });
+
+      if (response.status === 401) {
+        router.push('/login');
+        return;
+      }
 
       if (!response.ok) throw new Error("Failed to create invoice");
 

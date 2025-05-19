@@ -128,7 +128,6 @@ model Project {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  @@unique([title])
   @@index([userId])
 }
 
@@ -216,8 +215,8 @@ model Category {
 }
 
 model PaymentMethod {
-  id          String   @id @default(cuid())
-  userId      String
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
   type        String   // 'visa' or 'mastercard'
   last4       String
   expiryMonth String

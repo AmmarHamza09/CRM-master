@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/config/auth";
 import prisma from "@/lib/prisma";
 
 // GET /api/invoices
@@ -9,12 +9,15 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { 
-        status: 401,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      return new NextResponse(
+        JSON.stringify({ error: "Unauthorized" }), 
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
     }
 
     const invoices = await prisma.invoice.findMany({
@@ -33,19 +36,18 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(invoices, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    return NextResponse.json(invoices);
   } catch (error) {
     console.error("Error fetching invoices:", error);
-    return new NextResponse("Internal Server Error", { 
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    return new NextResponse(
+      JSON.stringify({ error: "Internal Server Error" }), 
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
   }
 }
 
@@ -55,12 +57,15 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { 
-        status: 401,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      return new NextResponse(
+        JSON.stringify({ error: "Unauthorized" }), 
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
     }
 
     const body = await req.json();
@@ -68,12 +73,15 @@ export async function POST(req: Request) {
 
     // Validate required fields
     if (!projectId || !amount || !dueDate) {
-      return new NextResponse("Missing required fields", { 
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      return new NextResponse(
+        JSON.stringify({ error: "Missing required fields" }), 
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
     }
 
     // Generate invoice number
@@ -84,7 +92,7 @@ export async function POST(req: Request) {
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber,
-        amount,
+        amount: parseFloat(amount),
         status,
         dueDate: new Date(dueDate),
         projectId,
@@ -99,18 +107,17 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json(invoice, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    return NextResponse.json(invoice);
   } catch (error) {
     console.error("Error creating invoice:", error);
-    return new NextResponse("Internal Server Error", { 
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    return new NextResponse(
+      JSON.stringify({ error: "Internal Server Error" }), 
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
   }
 } 
