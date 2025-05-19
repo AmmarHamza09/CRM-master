@@ -53,7 +53,7 @@ export default async function Home() {
           <div className="relative rounded-lg overflow-hidden">
             <BorderBeam />
             <Image
-              src="/dashboard.png"
+              src="/bg for front pg.png"
               alt="This is the dashbaord Image"
               width={1775}
               height={1109}

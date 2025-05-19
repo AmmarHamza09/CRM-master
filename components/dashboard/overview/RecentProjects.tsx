@@ -15,12 +15,29 @@ import { getClients } from '@/actions/clients'
 import { UserProps } from '@/types/types'
 import { useSession } from 'next-auth/react'
 import { Avatar, AvatarFallback, AvatarImage } from '@radix-ui/react-avatar'
+
+interface ClientData {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  emailVerified: Date | null;
+  image: string | null;
+  country: string | null;
+  location: string | null;
+  password: string | null;
+  role: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export default function RecentProjects() {
   const { data: session } = useSession()
-  const [clients, setClient] = useState<UserProps[] | null>(null)
+  const [clients, setClient] = useState<ClientData[] | null>(null)
 
   useEffect(() => {
-
     async function fetchClients() {
       const response = (await getClients()) || [];
       setClient(response)
@@ -61,19 +78,18 @@ export default function RecentProjects() {
           <TableBody>
             {
               clients?.map((client, index) => {
-
                 if (index > 5) return null;
                 
                 return (
-                  <TableRow>
+                  <TableRow key={client.id}>
                     <TableCell>
-                      <div
-                        className='flex items-center gap-2'
-                      >
-                        <div
-                        >
+                      <div className='flex items-center gap-2'>
+                        <div>
                           <Avatar className="hidden h-9 w-9 sm:flex">
                             <AvatarImage src={client.image || ''} alt="Avatar" />
+                            <AvatarFallback>
+                              {client.name?.charAt(0) || '?'}
+                            </AvatarFallback>
                           </Avatar>
                         </div>
                         <div>

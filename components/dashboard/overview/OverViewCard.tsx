@@ -15,7 +15,7 @@ enum ProjectPriority {
   HIGH = "HIGH"
 }
 
-interface OverViewCard{
+interface OverViewCard {
   title: string,
   priority: ProjectPriority,
   endDate?: Date
@@ -33,7 +33,11 @@ export default function Component({
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{priority}</div>
-        <p className="text-xs text-muted-foreground">{new Date(endDate).toLocaleDateString()}</p>
+        {endDate && (
+          <p className="text-xs text-muted-foreground">
+            {endDate.toLocaleDateString()}
+          </p>
+        )}
       </CardContent>
     </Card>
   )
