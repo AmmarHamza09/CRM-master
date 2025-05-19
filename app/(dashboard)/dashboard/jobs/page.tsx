@@ -31,6 +31,7 @@ import { useSession } from "next-auth/react";
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import { toast } from "react-hot-toast";
 
 enum ProjectStatus {
   OPEN = "OPEN",
@@ -226,7 +227,10 @@ export default function JobsPage() {
           body: JSON.stringify(newProject),
         });
 
-        if (!response.ok) throw new Error('Failed to update project');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to update project');
+        }
         
         const updatedProject = await response.json();
         setProjects(projects.map(p => 
@@ -234,8 +238,10 @@ export default function JobsPage() {
         ));
         setIsDialogOpen(false);
         setSelectedProject(null);
+        toast.success('Project updated successfully');
       } catch (error) {
         console.error('Error updating project:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to update project');
       }
     }
   };
@@ -247,13 +253,18 @@ export default function JobsPage() {
           method: 'DELETE',
         });
 
-        if (!response.ok) throw new Error('Failed to delete project');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to delete project');
+        }
         
         setProjects(projects.filter(p => p.id !== selectedProject.id));
         setIsDialogOpen(false);
         setSelectedProject(null);
+        toast.success('Project deleted successfully');
       } catch (error) {
         console.error('Error deleting project:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to delete project');
       }
     }
   };
@@ -468,9 +479,11 @@ export default function JobsPage() {
               events={projects.map(project => {
                 const colors = getPriorityColor(project.priority).calendar;
                 return {
+                  id: project.id,
                   title: project.title,
                   start: new Date(project.startDate),
-                  end: project.endDate ? new Date(project.endDate) : undefined,
+                  end: project.endDate ? new Date(project.endDate) : new Date(project.startDate),
+                  allDay: true,
                   backgroundColor: colors.bg,
                   borderColor: colors.border,
                   textColor: colors.text,
@@ -480,15 +493,20 @@ export default function JobsPage() {
                 };
               })}
               eventClick={(info) => {
-                setSelectedProject(info.event.extendedProps.project);
-                setNewProject(info.event.extendedProps.project);
+                const project = info.event.extendedProps.project;
+                setSelectedProject(project);
+                setNewProject(project);
                 setIsDialogOpen(true);
               }}
               eventContent={(eventInfo) => {
+                const project = eventInfo.event.extendedProps.project;
                 return (
                   <div className="p-1">
-                    <div className="font-medium">{eventInfo.event.title}</div>
-                    <div className="text-xs opacity-75">{eventInfo.event.extendedProps.project.company}</div>
+                    <div className="font-medium truncate">{eventInfo.event.title}</div>
+                    <div className="text-xs opacity-75 truncate">{project.company}</div>
+                    <div className="text-xs opacity-75 truncate">
+                      {project.priority} - {project.status}
+                    </div>
                   </div>
                 );
               }}
@@ -543,8 +561,41 @@ export default function JobsPage() {
                   const projectDate = new Date(project.startDate);
                   return projectDate.toDateString() === date.toDateString();
                 });
-                // You could show a modal or navigate to a detailed view here
                 console.log('More events on', date, events);
+              }}
+              eventDrop={async (info) => {
+                const project = info.event.extendedProps.project;
+                const newStartDate = info.event.start;
+                const newEndDate = info.event.end || newStartDate;
+                
+                try {
+                  const response = await fetch(`/api/projects/${project.id}`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      ...project,
+                      startDate: newStartDate,
+                      endDate: newEndDate,
+                    }),
+                  });
+
+                  if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to update project dates');
+                  }
+
+                  const updatedProject = await response.json();
+                  setProjects(projects.map(p => 
+                    p.id === project.id ? updatedProject : p
+                  ));
+                  toast.success('Project dates updated successfully');
+                } catch (error) {
+                  console.error('Error updating project dates:', error);
+                  toast.error(error instanceof Error ? error.message : 'Failed to update project dates');
+                  info.revert();
+                }
               }}
             />
           </div>
