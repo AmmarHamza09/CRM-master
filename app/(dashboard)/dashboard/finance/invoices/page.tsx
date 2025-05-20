@@ -39,6 +39,8 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
+  const [showEditInvoice, setShowEditInvoice] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -158,6 +160,90 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleEditInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      if (!selectedInvoice || !amount || !dueDate) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      const response = await fetch(`/api/invoices/${selectedInvoice.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          status,
+          dueDate: dueDate.toISOString(),
+        }),
+      });
+
+      if (response.status === 401) {
+        router.push('/auth/signin');
+        return;
+      }
+
+      if (!response.ok) throw new Error('Failed to update invoice');
+
+      toast.success('Invoice updated successfully');
+      setShowEditInvoice(false);
+      fetchInvoices();
+
+      // Reset form
+      setSelectedInvoice(null);
+      setAmount("");
+      setDueDate(undefined);
+      setStatus("PENDING");
+    } catch (error) {
+      console.error('Error updating invoice:', error);
+      toast.error('Failed to update invoice');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm('Are you sure you want to delete this invoice?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (response.status === 401) {
+        router.push('/auth/signin');
+        return;
+      }
+
+      if (!response.ok) throw new Error('Failed to delete invoice');
+
+      toast.success('Invoice deleted successfully');
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      toast.error('Failed to delete invoice');
+    }
+  };
+
+  const openEditModal = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setAmount(invoice.amount.toString());
+    setDueDate(new Date(invoice.dueDate));
+    setStatus(invoice.status);
+    setShowEditInvoice(true);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'paid':
@@ -213,6 +299,22 @@ export default function InvoicesPage() {
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
                         {invoice.status}
                       </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditModal(invoice)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteInvoice(invoice.id)}
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -308,6 +410,68 @@ export default function InvoicesPage() {
                   </Button>
                   <Button type="submit" disabled={loading}>
                     {loading ? "Creating..." : "Create Invoice"}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Edit Invoice Form */}
+        {showEditInvoice && selectedInvoice && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Edit Invoice</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleEditInvoice} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Amount</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="dueDate">Due Date</Label>
+                  <Input
+                    id="dueDate"
+                    type="date"
+                    value={dueDate ? format(dueDate, 'yyyy-MM-dd') : ''}
+                    onChange={(e) => setDueDate(new Date(e.target.value))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="PAID">Paid</SelectItem>
+                      <SelectItem value="OVERDUE">Overdue</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowEditInvoice(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? "Updating..." : "Update Invoice"}
                   </Button>
                 </div>
               </form>

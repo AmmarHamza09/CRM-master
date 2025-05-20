@@ -79,6 +79,21 @@ const FullCalendarComponent = dynamic(() => import('@fullcalendar/react'), {
   loading: () => <div>Loading calendar...</div>
 });
 
+// Add type for calendar events
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  backgroundColor: string;
+  borderColor: string;
+  textColor: string;
+  extendedProps: {
+    project: Project;
+  };
+}
+
 export default function JobsPage() {
   const { theme } = useTheme();
   const { data: session } = useSession();
@@ -440,6 +455,56 @@ export default function JobsPage() {
     }
   };
 
+  // Add this function to format dates properly
+  const formatDate = (date: Date | string | null | undefined) => {
+    if (!date) return new Date().toISOString().split('T')[0];
+    
+    try {
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        console.warn('Invalid date:', date);
+        return new Date().toISOString().split('T')[0];
+      }
+      return parsedDate.toISOString().split('T')[0];
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return new Date().toISOString().split('T')[0];
+    }
+  };
+
+  // Update the calendar events mapping
+  const calendarEvents: CalendarEvent[] = projects
+    .map(project => {
+      const colors = getPriorityColor(project.priority).calendar;
+      
+      // Ensure we have valid dates
+      const startDate = project.startDate ? new Date(project.startDate) : new Date();
+      const endDate = project.endDate ? new Date(project.endDate) : new Date(startDate);
+      
+      // Validate dates
+      if (isNaN(startDate.getTime())) {
+        console.warn('Invalid start date for project:', project.id);
+        return null;
+      }
+      
+      const event: CalendarEvent = {
+        id: project.id,
+        title: project.title,
+        start: formatDate(startDate),
+        end: formatDate(endDate),
+        allDay: true,
+        backgroundColor: colors.bg,
+        borderColor: colors.border,
+        textColor: colors.text,
+        extendedProps: {
+          project
+        }
+      };
+      
+      return event;
+    })
+    .filter((event): event is CalendarEvent => event !== null);
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
@@ -589,22 +654,7 @@ export default function JobsPage() {
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
               }}
               initialView="dayGridMonth"
-              events={projects.map(project => {
-                const colors = getPriorityColor(project.priority).calendar;
-                return {
-                  id: project.id,
-                  title: project.title,
-                  start: new Date(project.startDate),
-                  end: project.endDate ? new Date(project.endDate) : new Date(project.startDate),
-                  allDay: true,
-                  backgroundColor: colors.bg,
-                  borderColor: colors.border,
-                  textColor: colors.text,
-                  extendedProps: {
-                    project
-                  }
-                };
-              })}
+              events={calendarEvents}
               eventClick={(info) => {
                 const project = info.event.extendedProps.project;
                 setSelectedProject(project);
@@ -668,14 +718,6 @@ export default function JobsPage() {
               eventTextColor={theme === 'dark' ? '#f3f4f6' : '#1f2937'}
               dayMaxEventRows={true}
               moreLinkContent={(args) => `+${args.num} more`}
-              moreLinkClick={(info) => {
-                const date = info.date;
-                const events = projects.filter(project => {
-                  const projectDate = new Date(project.startDate);
-                  return projectDate.toDateString() === date.toDateString();
-                });
-                console.log('More events on', date, events);
-              }}
               eventDrop={async (info) => {
                 const project = info.event.extendedProps.project;
                 const newStartDate = info.event.start;

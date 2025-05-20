@@ -4,7 +4,7 @@ import React, { ReactNode } from "react";
 export default function PagesLayout({ children }: { children: ReactNode }) {
   return (
     <div>
-      <FloatingMenu />
+      {/* <FloatingMenu /> */}
       {children}
     </div>
   );

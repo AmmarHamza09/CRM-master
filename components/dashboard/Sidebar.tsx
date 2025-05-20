@@ -43,7 +43,7 @@ export default function Sidebar() {
     {
       title: "Finance",
       items: [
-        { title: "Invoices", href: "/dashboard/invoices", icon: DollarSign },
+        { title: "Invoices", href: "/dashboard/finance/invoices", icon: DollarSign },
         { title: "Payments", href: "/dashboard/payments", icon: Handshake },
       ],
     },

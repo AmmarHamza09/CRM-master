@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/config/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/prisma/db";
 import PDFDocument from "pdfkit";
 
 export async function GET(
@@ -15,7 +15,7 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const invoice = await prisma.invoice.findUnique({
+    const invoice = await db.invoice.findUnique({
       where: {
         id: params.id,
       },

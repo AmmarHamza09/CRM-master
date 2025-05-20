@@ -3,56 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/config/auth";
 import { db } from "@/prisma/db";
 
-// GET /api/invoices
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return new NextResponse(
-        JSON.stringify({ error: "Unauthorized" }), 
-        { 
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-    }
-
-    const invoices = await db.invoice.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      include: {
-        project: {
-          select: {
-            title: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    return NextResponse.json(invoices);
-  } catch (error) {
-    console.error("Error fetching invoices:", error);
-    return new NextResponse(
-      JSON.stringify({ error: "Internal Server Error" }), 
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-  }
-}
-
-// POST /api/invoices
-export async function POST(req: Request) {
+// PUT /api/invoices/[id]
+export async function PUT(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -69,10 +24,10 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { projectId, amount, status, dueDate } = body;
+    const { amount, status, dueDate } = body;
 
     // Validate required fields
-    if (!projectId || !amount || !dueDate) {
+    if (!amount || !dueDate) {
       return new NextResponse(
         JSON.stringify({ error: "Missing required fields" }), 
         { 
@@ -84,19 +39,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate invoice number
-    const timestamp = Date.now().toString().slice(-6);
-    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    const invoiceNumber = `INV-${timestamp}-${randomNum}`;
-
-    const invoice = await db.invoice.create({
+    const invoice = await db.invoice.update({
+      where: {
+        id: params.id,
+        userId: session.user.id,
+      },
       data: {
-        invoiceNumber,
         amount: parseFloat(amount),
         status,
         dueDate: new Date(dueDate),
-        projectId,
-        userId: session.user.id,
       },
       include: {
         project: {
@@ -109,7 +60,49 @@ export async function POST(req: Request) {
 
     return NextResponse.json(invoice);
   } catch (error) {
-    console.error("Error creating invoice:", error);
+    console.error("Error updating invoice:", error);
+    return new NextResponse(
+      JSON.stringify({ error: "Internal Server Error" }), 
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+  }
+}
+
+// DELETE /api/invoices/[id]
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return new NextResponse(
+        JSON.stringify({ error: "Unauthorized" }), 
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
+
+    await db.invoice.delete({
+      where: {
+        id: params.id,
+        userId: session.user.id,
+      },
+    });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("Error deleting invoice:", error);
     return new NextResponse(
       JSON.stringify({ error: "Internal Server Error" }), 
       { 

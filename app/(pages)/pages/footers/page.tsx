@@ -4,7 +4,7 @@ import React from "react";
 export default function page() {
   return (
     <div>
-      <FooterV1 />
+      {/* <FooterV1 /> */}
     </div>
   );
 }
