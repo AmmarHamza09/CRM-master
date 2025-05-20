@@ -204,19 +204,12 @@ export default function Dashboard() {
                 <h2 className="text-xl font-semibold">Recent Payments</h2>
                 <p className="text-sm text-gray-500">Latest payment transactions</p>
               </div>
-              {/* <button 
-                onClick={() => router.push('/dashboard/payments')}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                View All
-              </button> */}
               <Button asChild size="sm" className="ml-auto gap-1">
-              <Link href="/dashboard/payments">
-                View All
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
+                <Link href="/dashboard/payments">
+                  View All
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
               </Button>
-              
             </div>
             <div className="space-y-3">
               {payments.map((payment) => (

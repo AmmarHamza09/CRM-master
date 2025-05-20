@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "react-hot-toast";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Download } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ export default function InvoicesPage() {
   const [selectedProject, setSelectedProject] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState<Date>();
-  const [status, setStatus] = useState("PENDING");
+  const [invoiceStatus, setInvoiceStatus] = useState("PENDING");
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -131,7 +131,7 @@ export default function InvoicesPage() {
         body: JSON.stringify({
           projectId: selectedProject,
           amount: parseFloat(amount),
-          status,
+          status: invoiceStatus,
           dueDate: dueDate.toISOString(),
         }),
       });
@@ -151,7 +151,7 @@ export default function InvoicesPage() {
       setSelectedProject("");
       setAmount("");
       setDueDate(undefined);
-      setStatus("PENDING");
+      setInvoiceStatus("PENDING");
     } catch (error) {
       console.error('Error creating invoice:', error);
       toast.error('Failed to create invoice');
@@ -178,7 +178,7 @@ export default function InvoicesPage() {
         credentials: 'include',
         body: JSON.stringify({
           amount: parseFloat(amount),
-          status,
+          status: invoiceStatus,
           dueDate: dueDate.toISOString(),
         }),
       });
@@ -198,7 +198,7 @@ export default function InvoicesPage() {
       setSelectedInvoice(null);
       setAmount("");
       setDueDate(undefined);
-      setStatus("PENDING");
+      setInvoiceStatus("PENDING");
     } catch (error) {
       console.error('Error updating invoice:', error);
       toast.error('Failed to update invoice');
@@ -236,11 +236,57 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleDownloadInvoice = async (invoiceId: string) => {
+    try {
+      console.log('Downloading invoice:', invoiceId);
+      const response = await fetch(`/api/invoices/${invoiceId}/download`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (response.status === 401) {
+        router.push('/auth/signin');
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to download invoice');
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${invoiceId}.pdf`;
+      
+      // Append to body, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the URL
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Invoice downloaded successfully');
+    } catch (error: any) {
+      console.error('Error downloading invoice:', error);
+      toast.error(error?.message || 'Failed to download invoice');
+    }
+  };
+
   const openEditModal = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     setAmount(invoice.amount.toString());
     setDueDate(new Date(invoice.dueDate));
-    setStatus(invoice.status);
+    setInvoiceStatus(invoice.status);
     setShowEditInvoice(true);
   };
 
@@ -388,7 +434,7 @@ export default function InvoicesPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
-                  <Select value={status} onValueChange={setStatus}>
+                  <Select value={invoiceStatus} onValueChange={setInvoiceStatus}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -450,7 +496,7 @@ export default function InvoicesPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
-                  <Select value={status} onValueChange={setStatus}>
+                  <Select value={invoiceStatus} onValueChange={setInvoiceStatus}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
